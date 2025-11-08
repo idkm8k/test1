@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Weather Report</title>
+</head>
+<body>
+    <h1>=== WEATHER REPORT ===</h1>
+
+    <!-- Weather Form -->
+    <form method="post">
+        {% csrf_token %}
+        <p>Select input type:</p>
+        <input type="radio" id="city" name="choice1" value="n" {% if selected_choice != 'c' %}checked{% endif %}>
+        <label for="city">City</label>
+
+        <input type="radio" id="coords" name="choice1" value="c" {% if selected_choice == 'c' %}checked{% endif %}>
+        <label for="coords">Coordinates</label>
+
+        <!-- City input -->
+        <div id="city-input" {% if selected_choice == 'c' %}style="display:none"{% endif %}>
+            <label for="city-name">City:</label>
+            <input type="text" name="city" id="city-name" placeholder="Enter city" value="{{ city_input }}">
+        </div>
+
+        <!-- Coordinates input -->
+        <div id="coords-input" {% if selected_choice == 'c' %}style="display:block"{% else %}style="display:none"{% endif %}>
+            <label for="latitude">Latitude:</label>
+            <input type="text" name="latitude" id="latitude" placeholder="Enter latitude" value="{{ lat }}">
+            <label for="longitude">Longitude:</label>
+            <input type="text" name="longitude" id="longitude" placeholder="Enter longitude" value="{{ lon }}">
+        </div>
+
+        <button type="submit">Get Forecast</button>
+    </form>
+
+    <script>
+        // Toggle input visibility on radio change
+        const cityRadio = document.getElementById('city');
+        const coordsRadio = document.getElementById('coords');
+        const cityInput = document.getElementById('city-input');
+        const coordsInput = document.getElementById('coords-input');
+
+        cityRadio.addEventListener('change', () => {
+            cityInput.style.display = 'block';
+            coordsInput.style.display = 'none';
+        });
+
+        coordsRadio.addEventListener('change', () => {
+            cityInput.style.display = 'none';
+            coordsInput.style.display = 'block';
+        });
+    </script>
+
+    <!-- Display forecast for user-selected location -->
+    {% if forecast %}
+        <h2>Forecast for {{ forecast.0.name }}</h2>
+
+        {% for p in forecast %}
+            <p><strong>{{ p.name }}:</strong> {{ p.temperatureF }}°F ({{ p.temperatureC }}°C) - {{ p.shortForecast }}</p>
+        {% endfor %}
+
+        {% if daily_range %}
+            <p>Today's High: {{ daily_range.highF }}°F ({{ daily_range.highC }}°C), 
+               Low: {{ daily_range.lowF }}°F ({{ daily_range.lowC }}°C)</p>
+        {% endif %}
+
+        <!-- Temperature Graph -->
+        <h3>Temperature Over Forecast Period</h3>
+        {{ forecast|json_script:"forecast-data" }}
+        <canvas id="tempChart" width="600" height="300"></canvas>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            const forecastData = JSON.parse(document.getElementById('forecast-data').textContent);
+            const labels = forecastData.map(p => p.name);
+            const dataF = forecastData.map(p => p.temperatureF);
+            const dataC = forecastData.map(p => p.temperatureC);
+
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Temperature (°F)',
+                            data: dataF,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Temperature (°C)',
+                            data: dataC,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+        </script>
+    {% endif %}
+
+    <!-- Display fixed current weather (optional) -->
+    {% if fixed_current %}
+        <h3>Fixed Current Weather (e.g., specific coordinates)</h3>
+        <p>Temperature: {{ fixed_current.temperatureF }}°F ({{ fixed_current.temperatureC }}°C)</p>
+        <p>Wind: {{ fixed_current.windSpeed }} m/s, {{ fixed_current.windDirection }}°</p>
+        <p>Description: {{ fixed_current.description }}</p>
+        <p>Time: {{ fixed_current.time }}</p>
+    {% endif %}
+
+    <!-- Display user-specific current weather -->
+    {% if current %}
+        <h3>Current Weather at Selected Location</h3>
+        <p>Temperature: {{ current.temperatureF }}°F ({{ current.temperatureC }}°C)</p>
+        <p>Wind: {{ current.windSpeed }} m/s, {{ current.windDirection }}°</p>
+        <p>Description: {{ current.description }}</p>
+        <p>Time: {{ current.time }}</p>
+    {% endif %}
+
+    <!-- Display errors -->
+    {% if error %}
+        <p style="color:red">{{ error }}</p>
+    {% endif %}
+</body>
+</html>
